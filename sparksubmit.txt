@@ -1,0 +1,2 @@
+.\bin\spark-submit D:\GitHub\CSE-511Phase2\target\scala-2.11\CSE512-Hotspot-Analysis-Template-assembly-0.1.0.jar D:\GitHub\CSE-511Phase2\test\output hotcellanalysis D:\GitHub\CSE-511Phase2\src\resources\yellow_trip_sample_100000.csv > D:\GitHub\CSE-511Phase2\test\log.txt 2>&1
+
