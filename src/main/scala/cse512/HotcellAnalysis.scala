@@ -45,18 +45,22 @@ def runHotcellAnalysis(spark: SparkSession, pointPath: String): DataFrame =
   ////
   // CHANGED PART
   ///
-  // TODO: See if $ sign works in string
-  val nycPickup = spark.sql("SELECT x,y,z FROM tempView where x >=$minX and y >= $minY and z >= $minZ and x <= $maxX and y <= $maxY and z <= $maxZ");
-  nycPickup.createOrReplaceTempView("temp");
 
-  val X = spark.sql("SELECT x,y,z, COUNT(*) as xCount FROM temp GROUP BY x,y,z");
+
+  val nycPickupXYZ = spark.sql("select CalculateX(nyctaxitrips._c5) as x,CalculateY(nyctaxitrips._c5) as y, CalculateZ(nyctaxitrips._c1) as z from nyctaxitrips")
+  nycPickupXYZ.createOrReplaceTempView("tempView")
+
+  val nycPickup = spark.sql("SELECT x,y,z FROM tempView where x >="+minX+" and y >= "+ minY+" and z >= "+minZ+ " and x <= "+maxX+ " and y <= "+maxY+" and z <= "+maxZ)
+  nycPickup.createOrReplaceTempView("temp")
+
+  val X = spark.sql("SELECT x,y,z, COUNT(*) as xCount FROM temp GROUP BY x,y,z")
   X.createOrReplaceTempView("tempX")
   X.show()
 
   val neighbor = spark.sql("SELECT t1.x, t1.y, t1.z, SUM(t2.xCount) as sumX, COUNT(t2.xCount) as neighbors " +
     "FROM tempX t1, tempX t2 " +
     "WHERE ((ABS(t1.x-t2.x) = 1 OR ABS(t1.x-t2.x) = 0) AND (ABS(t1.y-t2.y) = 1 OR ABS(t1.y-t2.y) = 0) AND (ABS(t1.z-t2.z) = 1 OR ABS(t1.z-t2.z) = 0)) " +
-    "GROUP BY t1.x, t1.y, t1.z");
+    "GROUP BY t1.x, t1.y, t1.z")
   neighbor.createOrReplaceTempView("tempNeighbor")
   neighbor.show()
 
@@ -64,19 +68,16 @@ def runHotcellAnalysis(spark: SparkSession, pointPath: String): DataFrame =
   val sum2 = spark.sql("SELECT SUM(tempX.xCount * tempX.xCount) as sumX2 FROM tempX").first().getLong(0).toDouble
 
   var mean = sum1 / numCells.toDouble
-  mean = mean.toDouble
-
   var stdDev = math.sqrt(sum2/numCells - mean* mean)
-  stdDev = stdDev.toDouble
 
   spark.udf.register("zScore", (x: Int, y: Int, z: Int, sum: Double, neighbors: Int) =>
     HotcellUtils.score(x, y, z, minX, maxX, minY, maxY, minZ, maxZ, numCells.toDouble, sum, neighbors, mean, stdDev)
     )
 
-  val result = spark.sql("SELECT _.x, _.y, _.z FROM (SELECT x, y, z, zScore(tempNeighbor.x, tempNeighbor.y, tempNeighbor.z, tempNeighbor.sumNX, tempNeighbor.neighbors) as score FROM tempNeighbor ORDER BY score DESC) _")
+  val result = spark.sql("SELECT _.x, _.y, _.z FROM (SELECT x, y, z, zScore(tempNeighbor.x, tempNeighbor.y, tempNeighbor.z, tempNeighbor.sumX, tempNeighbor.neighbors) as score FROM tempNeighbor ORDER BY score DESC) _")
   result.show()
 
-  return result
+  result
 
 }
 }

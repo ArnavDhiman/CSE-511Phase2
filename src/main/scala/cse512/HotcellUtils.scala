@@ -65,6 +65,6 @@ object HotcellUtils {
       zScore = numerator.toDouble / denominator
     }
 
-    return zScore
+    zScore
   }
 }

@@ -34,7 +34,7 @@ object HotzoneAnalysis {
     ///
 
     val result = spark.sql("select rectangle, count(point) from joinResult group by rectangle order by rectangle asc")
-    return result;
+    result
   }
 
 }
